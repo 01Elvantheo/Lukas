@@ -15,12 +15,14 @@
       height: 100vh;
       font-family: Arial, sans-serif;
       overflow: hidden;
+      touch-action: manipulation;
     }
 
     canvas {
       border: 4px solid white;
       border-radius: 12px;
       display: block;
+      background: skyblue;
     }
   </style>
 </head>
@@ -93,13 +95,10 @@ kepalaImg.src = "./kepala.png";
 
 let kepalaReady = false;
 
-kepalaImg.onload = () => {
-  kepalaReady = true;
-};
-
+kepalaImg.onload = () => kepalaReady = true;
 kepalaImg.onerror = () => {
   kepalaReady = false;
-  console.log("ERROR: kepala.png tidak ditemukan / gagal load.");
+  console.log("ERROR: kepala.png tidak ditemukan.");
 };
 
 // ==========================
@@ -225,15 +224,12 @@ function drawCloud(x, y, size) {
 function drawGround() {
   let groundY = canvas.height - groundHeight;
 
-  // tanah
   ctx.fillStyle = "#caa76d";
   ctx.fillRect(0, groundY, canvas.width, groundHeight);
 
-  // rumput
   ctx.fillStyle = "#3cae2a";
   ctx.fillRect(0, groundY, canvas.width, 18);
 
-  // tekstur tanah (bergerak)
   for (let i = -50; i < canvas.width + 100; i += 50) {
     ctx.fillStyle = "rgba(120,80,40,0.35)";
     ctx.beginPath();
@@ -246,7 +242,6 @@ function drawGround() {
     ctx.fill();
   }
 
-  // garis pembatas tanah
   ctx.strokeStyle = "rgba(0,0,0,0.3)";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -274,11 +269,11 @@ function drawStartUI() {
   let blink = Math.sin(Date.now() / 250) > 0;
   if (blink) {
     ctx.font = "22px Arial";
-    ctx.fillText("CLICK / SPACE TO START", canvas.width/2, 380);
+    ctx.fillText("TAP / SPACE TO START", canvas.width/2, 380);
   }
 
   ctx.font = "16px Arial";
-  ctx.fillText("Press SPACE / klik buat loncat", canvas.width/2, 430);
+  ctx.fillText("Klik layar buat loncat", canvas.width/2, 430);
 
   ctx.textAlign = "left";
 }
@@ -299,8 +294,11 @@ function drawGameOverUI() {
   ctx.font = "20px Arial";
   ctx.fillText("Highscore: " + highscore, canvas.width/2, 350);
 
-  ctx.font = "20px Arial";
-  ctx.fillText("Press R to Restart", canvas.width/2, 410);
+  let blink = Math.sin(Date.now() / 250) > 0;
+  if (blink) {
+    ctx.font = "20px Arial";
+    ctx.fillText("TAP TO RESTART", canvas.width/2, 410);
+  }
 
   ctx.textAlign = "left";
 }
@@ -308,7 +306,7 @@ function drawGameOverUI() {
 // ==========================
 // INPUT
 // ==========================
-function jump() {
+function jumpOrRestart() {
   if (state === "start") {
     resetGame();
     state = "play";
@@ -318,24 +316,35 @@ function jump() {
 
   if (state === "play") {
     player.vel = player.jump;
+    return;
+  }
+
+  if (state === "gameover") {
+    state = "start";
+    return;
   }
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.code === "Space") jump();
+  if (e.code === "Space") jumpOrRestart();
 
-  if (e.code === "KeyR" && state === "gameover") {
-    state = "start";
+  if (e.code === "KeyR") {
+    if (state === "gameover") state = "start";
   }
 });
 
-canvas.addEventListener("click", () => jump());
+// Mobile friendly
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  jumpOrRestart();
+}, { passive: false });
+
+canvas.addEventListener("click", () => jumpOrRestart());
 
 // ==========================
 // MAIN LOOP
 // ==========================
 function update() {
-  // Shake offset
   let shakeX = 0;
   let shakeY = 0;
 
@@ -356,7 +365,7 @@ function update() {
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Clouds move always
+  // Clouds always move
   clouds.forEach(cloud => {
     cloud.x -= cloud.speed;
 
@@ -370,38 +379,28 @@ function update() {
     drawCloud(cloud.x, cloud.y, cloud.size);
   });
 
-  // ==========================
-  // PLAY MODE UPDATES
-  // ==========================
+  // Play updates
   if (state === "play") {
     player.vel += player.gravity;
     player.y += player.vel;
 
-    // ground scroll
     groundOffset -= 2;
     if (groundOffset < -50) groundOffset = 0;
 
-    // pipe movement
     pipes.forEach(pipe => pipe.x -= pipeSpeed);
 
-    // spawn pipe
     if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 250) {
       spawnPipe();
     }
 
-    // remove old pipes
     pipes = pipes.filter(pipe => pipe.x + pipeWidth > -80);
   }
 
-  // ==========================
-  // DRAW PIPES
-  // ==========================
+  // Draw pipes
   pipes.forEach(pipe => {
-    // top pipe
     drawPipe3D(pipe.x, 0, pipeWidth, pipe.top);
     drawPipeCap(pipe.x, pipe.top, pipeWidth, true);
 
-    // bottom pipe
     drawPipe3D(pipe.x, pipe.bottom, pipeWidth, canvas.height - groundHeight - pipe.bottom);
     drawPipeCap(pipe.x, pipe.bottom, pipeWidth, false);
 
@@ -416,13 +415,11 @@ function update() {
         h: canvas.height - groundHeight - pipe.bottom
       };
 
-      // collision
       if (rectCollide(playerRect, topRect) || rectCollide(playerRect, bottomRect)) {
         state = "gameover";
         shakeTime = 25;
       }
 
-      // score
       if (!pipe.passed && pipe.x + pipeWidth < player.x) {
         pipe.passed = true;
         score++;
@@ -435,19 +432,10 @@ function update() {
     }
   });
 
-  // ==========================
-  // DRAW GROUND
-  // ==========================
   drawGround();
-
-  // ==========================
-  // DRAW PLAYER
-  // ==========================
   drawHeadCircle(player.x, player.y, player.w);
 
-  // ==========================
-  // COLLISION GROUND
-  // ==========================
+  // Ground collision
   if (state === "play") {
     if (player.y + player.h > canvas.height - groundHeight) {
       state = "gameover";
@@ -460,9 +448,7 @@ function update() {
     }
   }
 
-  // ==========================
-  // SCORE UI
-  // ==========================
+  // Score UI
   if (state === "play") {
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
@@ -472,9 +458,7 @@ function update() {
     ctx.fillText("Highscore: " + highscore, 20, 65);
   }
 
-  // ==========================
-  // OVERLAYS
-  // ==========================
+  // Overlay UI
   if (state === "start") drawStartUI();
   if (state === "gameover") drawGameOverUI();
 
