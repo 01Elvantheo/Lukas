@@ -39,7 +39,7 @@ const ctx = canvas.getContext("2d");
 // ==========================
 let state = "start"; // start, play, gameover
 let score = 0;
-let highscore = parseInt(localStorage.getItem("highscore_flappy_kepala")) || 0;
+let highscore = parseInt(localStorage.getItem("highscore_flappy_lukas")) || 0;
 
 // ==========================
 // SHAKE EFFECT
@@ -261,7 +261,7 @@ function drawStartUI() {
   ctx.fillText("FLAPPY", canvas.width/2, 200);
 
   ctx.font = "bold 48px Arial";
-  ctx.fillText("KEPALA", canvas.width/2, 260);
+  ctx.fillText("LUKAS", canvas.width/2, 260);
 
   ctx.font = "20px Arial";
   ctx.fillText("Highscore: " + highscore, canvas.width/2, 315);
@@ -471,4 +471,5 @@ update();
 
 </body>
 </html>
+
 
